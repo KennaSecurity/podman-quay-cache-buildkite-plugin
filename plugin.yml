@@ -1,0 +1,20 @@
+name: Podman Quay Cache
+description: Cache container images in Quay
+author: https://github.com/KennaSecurity
+requirements:
+  - podman
+configuration:
+  properties:
+    build-args:
+      type: [array, string]
+    additional-build-args:
+      type: string
+    cache-on:
+      type: [array, string]
+    dockerfile:
+      type: string
+    repo-name:
+      type: string
+    target:
+      type: string
+  required: []

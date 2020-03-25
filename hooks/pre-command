@@ -1,0 +1,125 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# TODO: refactor with ENV var
+get_quay_url() {
+  local repository_name="${1}"
+  echo "containers.kennasecurity.com/${repository_name}"
+}
+
+read_build_args() {
+  read_list_property 'BUILD_ARGS'
+  for arg in ${result[@]+"${result[@]}"}; do
+    build_args+=('--build-arg' "${arg}")
+  done
+}
+
+# read a plugin property of type [array, string] into a Bash array. Buildkite
+# exposes a string value at BUILDKITE_PLUGIN_{NAME}_{KEY}, and array values at
+# BUILDKITE_PLUGIN_{NAME}_{KEY}_{IDX}.
+read_list_property() {
+  local base_name="BUILDKITE_PLUGIN_PODMAN_QUAY_CACHE_${1}"
+
+  result=()
+
+  if [[ -n ${!base_name:-} ]]; then
+    result+=("${!base_name}")
+  fi
+
+  while IFS='=' read -r item_name _; do
+    if [[ ${item_name} =~ ^(${base_name}_[0-9]+) ]]; then
+      result+=("${!item_name}")
+    fi
+  done < <(env | sort)
+}
+
+compute_tag() {
+  local docker_file="$1"
+  local sums
+
+  echoerr() { echo "$@" 1>&2; }
+
+  echoerr '--- Computing tag'
+
+  echoerr 'DOCKERFILE'
+  echoerr "+ ${docker_file}:${target:-<target>}"
+  sums="$(sha1sum "${docker_file}")"
+  sums+="$(echo "${target}" | sha1sum)"
+
+  echoerr 'ARCHITECTURE'
+  echoerr "+ $(uname -m)"
+  sums+="$(uname -m | sha1sum)"
+
+  echoerr 'BUILD_ARGS'
+  read_list_property 'BUILD_ARGS'
+  for arg in ${result[@]+"${result[@]}"}; do
+    echoerr "+ ${arg}"
+
+    # include underlying environment variable after echo
+    if [[ ${arg} != *=* ]]; then
+      arg+="=${!arg:-}"
+    fi
+
+    sums+="$(echo "${arg}" | sha1sum)"
+  done
+
+  # expand ** in cache-on properties
+  shopt -s globstar
+
+  echoerr 'CACHE_ON'
+  read_list_property 'CACHE_ON'
+  for glob in ${result[@]+"${result[@]}"}; do
+    echoerr "${glob}"
+    for file in ${glob}; do
+      echoerr "+ ${file}"
+      sums+="$(sha1sum "${file}")"
+    done
+  done
+
+  echo "${sums}" | sha1sum | cut -c-7
+}
+
+# TODO:
+#  download auth file from s3
+#  podman login with auth file
+
+default_repository_name="buildkite-cache/${BUILDKITE_ORGANIZATION_SLUG}/${BUILDKITE_PIPELINE_SLUG}"
+repository_name="${BUILDKITE_PLUGIN_PODMAN_QUAY_CACHE_REPO_NAME:-${default_repository_name}}"
+docker_file="${BUILDKITE_PLUGIN_PODMAN_QUAY_CACHE_DOCKERFILE:-Dockerfile}"
+target="${BUILDKITE_PLUGIN_PODMAN_QUAY_CACHE_TARGET:-}"
+image="$(get_quay_url "${repository_name}")"
+exec 3>&1
+tag="$(compute_tag "${docker_file}" 2>&3)"
+context=$(dirname "${docker_file}")
+
+target_args=()
+if [[ -n ${target} ]]; then
+  target_args+=('--target' "${target}")
+fi
+
+build_args=()
+read_build_args
+
+if ! podman pull "${image}:${tag}"; then
+  echo '--- Building image'
+  podman build \
+  --file "${docker_file}" \
+  --tag "${image}:${tag}" \
+  ${BUILDKITE_PLUGIN_PODMAN_QUAY_CACHE_ADDITIONAL_BUILD_ARGS:-} \
+  ${build_args[@]+"${build_args[@]}"} \
+  ${target_args[@]+"${target_args[@]}"} \
+  "${context}" || exit 1
+
+  podman tag "${image}:${tag}" "${image}:latest"
+
+  echo "--- Pushing tag ${tag}"
+  podman push "${image}:${tag}"
+
+  echo "--- Pushing tag latest"
+  podman push "${image}:latest"
+fi || echo "Not found"
+
+# TODO: figure out if still required with our podman plugin
+# Support using https://github.com/buildkite-plugins/docker-buildkite-plugin without an image
+# export BUILDKITE_PLUGIN_DOCKER_IMAGE="${image}:${tag}"
