@@ -165,3 +165,7 @@ To run the tests of this plugin, run:
 ```bash
 podman-compose run --rm tests
 ```
+
+## License
+
+MIT (see [LICENSE](LICENSE))
