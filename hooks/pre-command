@@ -2,12 +2,6 @@
 
 set -euo pipefail
 
-# TODO: refactor with ENV var
-get_quay_url() {
-  local repository_name="${1}"
-  echo "containers.kennasecurity.com/${repository_name}"
-}
-
 read_build_args() {
   read_list_property 'BUILD_ARGS'
   for arg in ${result[@]+"${result[@]}"}; do
@@ -80,15 +74,18 @@ compute_tag() {
   echo "${sums}" | sha1sum | cut -c-7
 }
 
-# TODO:
-#  download auth file from s3
-#  podman login with auth file
+default_repository_base_uri="containers.kennasecurity.com"
+repository_base_uri="${BUILDKITE_PLUGIN_PODMAN_QUAY_CACHE_REPO_BASE_URI:-${default_repository_base_uri}}"
+
+# download auth file from s3 and login to repository
+aws s3 cp "s3://kenna-buildkite-secrets/${BUILDKITE_PIPELINE_SLUG}/buildkite-auth.json" /tmp/buildkite-auth.json
+podman login --authfile /tmp/buildkite-auth.json "${repository_base_uri}"
 
 default_repository_name="buildkite-cache/${BUILDKITE_ORGANIZATION_SLUG}/${BUILDKITE_PIPELINE_SLUG}"
 repository_name="${BUILDKITE_PLUGIN_PODMAN_QUAY_CACHE_REPO_NAME:-${default_repository_name}}"
 docker_file="${BUILDKITE_PLUGIN_PODMAN_QUAY_CACHE_DOCKERFILE:-Dockerfile}"
 target="${BUILDKITE_PLUGIN_PODMAN_QUAY_CACHE_TARGET:-}"
-image="$(get_quay_url "${repository_name}")"
+image="${repository_base_uri}/${repository_name}"
 exec 3>&1
 tag="$(compute_tag "${docker_file}" 2>&3)"
 context=$(dirname "${docker_file}")
