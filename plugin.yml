@@ -1,8 +1,9 @@
 name: Podman Quay Cache
-description: Cache container images in Quay
+description: Cache podman images in Quay
 author: https://github.com/KennaSecurity
 requirements:
-  - podman
+  - KennaSecurity/podman
+  - coyainsurance/s3-cache
 configuration:
   properties:
     build-args:
