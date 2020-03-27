@@ -78,9 +78,11 @@ default_repository_base_uri="containers.kennasecurity.com"
 repository_base_uri="${BUILDKITE_PLUGIN_PODMAN_QUAY_CACHE_REPO_BASE_URI:-${default_repository_base_uri}}"
 default_repository_auth_file="buildkite-auth.json"
 repository_auth_file="${BUILDKITE_PLUGIN_PODMAN_QUAY_CACHE_REPO_AUTH_FILE:-${default_repository_auth_file}}"
+default_s3_cache_bucket="buildkite-s3-cache"
+s3_cache_bucket="${BUILDKITE_PLUGIN_S3_CACHE_BUCKET:-${default_s3_cache_bucket}}"
 
 # download auth file from s3 and login to repository
-aws s3 cp "s3://${BUILDKITE_PLUGIN_S3_CACHE_BUCKET}/${BUILDKITE_PIPELINE_SLUG}/${repository_auth_file}" /tmp/${repository_auth_file}
+aws s3 cp "s3://${s3_cache_bucket}/${BUILDKITE_PIPELINE_SLUG}/${repository_auth_file}" /tmp/${repository_auth_file}
 podman login --authfile "/tmp/${repository_auth_file}" "${repository_base_uri}"
 
 default_repository_name="buildkite-cache/${BUILDKITE_ORGANIZATION_SLUG}/${BUILDKITE_PIPELINE_SLUG}"
