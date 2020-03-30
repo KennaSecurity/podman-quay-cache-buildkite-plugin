@@ -121,6 +121,5 @@ if ! podman pull --authfile "/tmp/${repository_auth_file}" "${image}:${tag}"; th
   podman push --authfile "/tmp/${repository_auth_file}" "${image}:latest"
 fi || echo "Not found"
 
-# TODO: figure out if still required with our podman plugin
 # Support using https://github.com/buildkite-plugins/docker-buildkite-plugin without an image
-# export BUILDKITE_PLUGIN_DOCKER_IMAGE="${image}:${tag}"
+export BUILDKITE_PLUGIN_DOCKER_IMAGE="${image}:${tag}"
