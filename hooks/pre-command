@@ -102,7 +102,7 @@ fi
 build_args=()
 read_build_args
 
-if ! podman pull "${image}:${tag}"; then
+if ! podman pull --authfile "/tmp/${repository_auth_file}" "${image}:${tag}"; then
   echo '--- Building image'
   podman build \
   --file "${docker_file}" \
@@ -115,10 +115,10 @@ if ! podman pull "${image}:${tag}"; then
   podman tag "${image}:${tag}" "${image}:latest"
 
   echo "--- Pushing tag ${tag}"
-  podman push "${image}:${tag}"
+  podman push --authfile "/tmp/${repository_auth_file}" "${image}:${tag}"
 
   echo "--- Pushing tag latest"
-  podman push "${image}:latest"
+  podman push --authfile "/tmp/${repository_auth_file}" "${image}:latest"
 fi || echo "Not found"
 
 # TODO: figure out if still required with our podman plugin
