@@ -85,7 +85,7 @@ s3_cache_bucket="${BUILDKITE_PLUGIN_S3_CACHE_BUCKET:-${default_s3_cache_bucket}}
 aws s3 cp "s3://${s3_cache_bucket}/${BUILDKITE_PIPELINE_SLUG}/${repository_auth_file}" /tmp/${repository_auth_file}
 podman login --authfile "/tmp/${repository_auth_file}" "${repository_base_uri}"
 
-default_repository_name="buildkite-cache/${BUILDKITE_ORGANIZATION_SLUG}/${BUILDKITE_PIPELINE_SLUG}"
+default_repository_name="${BUILDKITE_ORGANIZATION_SLUG}/${BUILDKITE_PIPELINE_SLUG}"
 repository_name="${BUILDKITE_PLUGIN_PODMAN_QUAY_CACHE_REPO_NAME:-${default_repository_name}}"
 docker_file="${BUILDKITE_PLUGIN_PODMAN_QUAY_CACHE_DOCKERFILE:-Dockerfile}"
 target="${BUILDKITE_PLUGIN_PODMAN_QUAY_CACHE_TARGET:-}"
